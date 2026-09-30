@@ -178,7 +178,38 @@ R:/ (ou local_root)
 python -m unittest discover -s tests   # 15 tests
 ```
 
-## 8. Dépannage
+## 8. Compatibilité NAS / systèmes de fichiers
+
+Le système de fichiers du NAS (**ext2, ext4, btrfs…**) n'affecte pas les
+fonctionnalités de l'outil : le NAS n'est sollicité que comme stockage
+d'octets via SMB/QuickConnect. Les éléments avancés vivent tous côté poste
+Windows :
+
+| Élément | Emplacement | Exigence FS |
+|---|---|---|
+| Sync root CfApi, placeholders, liens virtuels `Categories/<Tag>/` | Volume local Windows (`R:\`) | **NTFS** (exigé par CfApi) |
+| Base SQLite cachée | Local (`db_dir`) | FS local quelconque |
+| Fichiers physiques `Documents/` | NAS Synology | Aucune (accès SMB) |
+
+Règles à respecter :
+
+1. **ext2 n'est pas journalisé** : après coupure de courant, un `fsck` du NAS
+   peut être requis et des fichiers peuvent être perdus. Recommandation :
+   migrer le volume en **ext4 ou btrfs**. C'est un risque de données, pas
+   d'intégration.
+2. **Mode simulation (`local_root` sur un montage SMB)** : les symlinks ne
+   fonctionnent pas sur SMB — repli **copie** automatique (l'espace NAS est
+   multiplié par le nombre de tags). En mode CfApi (production), ce problème
+   n'existe pas : les liens sont des entrées virtuelles locales.
+3. **Ne placez jamais la base SQLite sur le NAS** : SQLite sur SMB (verrou
+   réseau peu fiable) risque la corruption. La base reste sur le poste.
+4. Les permissions « lecture seule » des répertoires catégorie/tag sont
+   appliquées par le provider CfApi côté Windows, pas par le NAS : le modèle
+   POSIX simple d'ext2 suffit.
+5. Le nommage des fichiers générés est ASCII-safe (accents normalisés) :
+   aucun problème d'encodage via SMB.
+
+## 9. Dépannage
 
 | Symptôme | Cause probable / action |
 |---|---|

@@ -159,6 +159,24 @@ RechercheDocumentaire.exe --scan-once
 - le montage sur lettre libre est géré par `_ensure_drive_letter` (repli
   `subst`) ; en production, la lettre doit être réservée à l'outil.
 
+## 8bis. Compatibilité NAS / systèmes de fichiers
+
+Le FS du NAS est sans impact sur CfApi : le sync root, les placeholders et
+les liens `Categories/` vivent sur le **volume NTFS local** du poste, jamais
+sur le NAS. Celui-ci n'est lu/écrit que comme octets via SMB/QuickConnect
+(politique `HYDRATION_POLICY_FULL` : toutes les lectures transitent par le
+provider).
+
+Points d'attention :
+
+- **ext2 (non journalisé)** : risque de perte de données du NAS lui-même
+  après coupure brutale (fsck). Migrer en ext4/btrfs recommandé — sans
+  impact sur l'intégration CfApi.
+- **Ne pas confondre** : si `local_root` pointe sur un montage SMB (mode
+  simulation), CfApi ne s'applique pas et les liens basculent en copies ;
+  le vrai mode CfApi utilise toujours un volume NTFS local.
+- La base SQLite reste locale ; jamais sur un partage réseau.
+
 ## 9. Références
 
 - Microsoft Docs — *Cloud Sync Engine API* (cldapi.dll), cfapi.h du SDK ;
