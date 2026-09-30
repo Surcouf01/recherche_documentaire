@@ -54,16 +54,22 @@
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
         <Directory Id="INSTALLDIR" Name="RechercheDocumentaire">
-          <Component Id="MainFiles" Guid="*" Win64="yes">
+          <Component Id="MainExe" Guid="*" Win64="yes">
             <File Id="RechercheDocExe"
                   Source="$(var.BuildDir)\RechercheDocumentaire.exe"
                   KeyPath="yes" />
+          </Component>
+          <Component Id="SearchGui" Guid="*" Win64="yes">
             <File Id="SearchGuiExe"
-                  Source="$(var.BuildDir)\RechercheDocumentaireSearch.exe" />
+                  Source="$(var.BuildDir)\RechercheDocumentaireSearch.exe"
+                  KeyPath="yes" />
+          </Component>
+          <Component Id="ConfigExampleFile" Guid="*" Win64="yes">
             <File Id="ConfigExample"
-                  Source="$(var.BuildDir)\config.example.yaml" />
-            <File Id="LicenseRtf"
-                  Source="$(var.ProjectRoot)\installer\License.rtf" />
+                  Source="$(var.BuildDir)\config.example.yaml"
+                  KeyPath="yes" />
+          </Component>
+          <Component Id="RegistryInfo" Guid="*" Win64="yes">
             <RegistryKey Root="HKLM" Key="Software\RechercheDocumentaire">
               <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLDIR]" />
               <RegistryValue Name="Version" Type="string" Value="$(var.ProductVersion)" />
@@ -138,7 +144,10 @@
     <Feature Id="Main" Level="1" Title="Recherche Documentaire"
              Description="Moteur de synchro, recherche et agent courriel"
              Display="expand" ConfigurableDirectory="INSTALLDIR">
-      <ComponentRef Id="MainFiles" />
+      <ComponentRef Id="MainExe" />
+      <ComponentRef Id="SearchGui" />
+      <ComponentRef Id="ConfigExampleFile" />
+      <ComponentRef Id="RegistryInfo" />
       <ComponentRef Id="DbDir" />
       <ComponentRef Id="StartMenuShortcuts" />
       <ComponentRef Id="ExplorerPlugin" />
