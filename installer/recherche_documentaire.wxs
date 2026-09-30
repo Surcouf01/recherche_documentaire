@@ -35,16 +35,16 @@
     </Property>
 
     <!-- Propriétés configurables en ligne de commande (msiexec /i ... PROP=VAL) -->
-    <Property Id="QUICKCONNECT_ID" Value="" Secure="yes" />
-    <Property Id="NAS_LOGIN" Value="" Secure="yes" />
-    <Property Id="NAS_PASSWORD" Value="" Secure="yes" />
+    <Property Id="QUICKCONNECT_ID" Value="-" Secure="yes" />
+    <Property Id="NAS_LOGIN" Value="-" Secure="yes" />
+    <Property Id="NAS_PASSWORD" Value="-" Secure="yes" />
     <Property Id="NAS_DOCUMENTS_DIR" Value="/volume1/docs/Documents" Secure="yes" />
     <Property Id="DRIVE_LETTER" Value="R:" Secure="yes" />
-    <Property Id="IMAP_URL" Value="" Secure="yes" />
-    <Property Id="MAIL_LOGIN" Value="" Secure="yes" />
-    <Property Id="MAIL_PASSWORD" Value="" Secure="yes" />
-    <Property Id="MAIL_DOCUMENTS_DIR" Value="" Secure="yes" />
-    <Property Id="LAST_RUN" Value="" Secure="yes" />
+    <Property Id="IMAP_URL" Value="-" Secure="yes" />
+    <Property Id="MAIL_LOGIN" Value="-" Secure="yes" />
+    <Property Id="MAIL_PASSWORD" Value="-" Secure="yes" />
+    <Property Id="MAIL_DOCUMENTS_DIR" Value="-" Secure="yes" />
+    <Property Id="LAST_RUN" Value="-" Secure="yes" />
 
     <InstallExecuteSequence>
       <!-- Écrit la configuration YAML à partir des propriétés passées à msiexec -->
@@ -89,7 +89,7 @@
            La commande lance l'exe de recherche figé ; %V passe le dossier visité. -->
       <Component Id="ExplorerPlugin" Guid="*" Win64="yes">
         <RegistryKey Root="HKCU" Key="Software\Classes\Drive\shell\RechercheDocumentaire"
-                     Action="createAndRemoveOnUninstall">
+                     ForceCreateOnInstall="yes" ForceDeleteOnUninstall="yes">
           <RegistryValue Type="string" Value="Recherche Documentaire..." />
           <RegistryValue Name="Icon" Type="string"
                          Value="[INSTALLDIR]RechercheDocumentaireSearch.exe,0" />
@@ -129,7 +129,7 @@
     <Binary Id="WriteConfigScript"
             SourceFile="$(var.ProjectRoot)\installer\write_config.vbs" />
     <CustomAction Id="WriteAppConfig"
-                  BinaryRef="WriteConfigScript"
+                  BinaryKey="WriteConfigScript"
                   VBScriptCall="WriteConfig"
                   Return="check"
                   Execute="deferred"

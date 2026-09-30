@@ -1,12 +1,11 @@
 # Build de l'installeur MSI « Recherche Documentaire » (Windows).
-# Prérequis : Python 3.12+ (vieux) et WiX Toolset v3 (candle/light dans le PATH),
-#             ou $env:WIX pointant vers l'installation WiX.
+# Prérequis : Python 3.12+ et WiX Toolset v3 (candle/light dans le PATH,
+#             ou $env:WIX / $env:WIX_BIN_DIR).
 # Usage : powershell -ExecutionPolicy Bypass -File installer\build_msi.ps1 [-Version 0.1.0]
 
 param(
     [string]$Version = "0.1.0",
-    [string]$Configuration = "Release",
-    [switch]$SkipInstaller   # construit seulement les exécutables PyInstaller
+    [switch]$SkipInstaller   # construit seulement les executables PyInstaller
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,17 +18,20 @@ if (-not (Test-Path $DistDir)) { New-Item -ItemType Directory -Path $DistDir | O
 if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }
 New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
 
-Write-Host "==> Installation des dépendances Python"
+Write-Host "==> Installation des dependances Python"
 python -m pip install --upgrade pip
 python -m pip install -r (Join-Path $ProjectRoot "requirements.txt")
 python -m pip install pyinstaller pywin32
 
+$AppPy = Join-Path $ProjectRoot "recherche_doc\app.py"
+$GuiPy = Join-Path $ProjectRoot "recherche_doc\search\gui_app.py"
+
 Write-Host "==> Freeze PyInstaller : moteur de synchro"
 $AppSpec = Join-Path $BuildDir "app.spec"
-@'
+@"
 # -*- mode: python ; coding: utf-8 -*-
-a = Analysis(["../recherche_doc/app.py"],
-             pathex=[".."],
+a = Analysis([r"$AppPy"],
+             pathex=[r"$ProjectRoot"],
              datas=[],
              hiddenimports=["recherche_doc.windows_provider"],
              excludes=["tkinter"],
@@ -37,42 +39,41 @@ a = Analysis(["../recherche_doc/app.py"],
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, a.binaries, a.datas,
           name="RechercheDocumentaire", console=True, exclude_binaries=False)
-'@ | Set-Content -Encoding UTF8 $AppSpec
+"@ | Set-Content -Encoding ASCII $AppSpec
 python -m PyInstaller --noconfirm --clean --workpath "$BuildDir\work" --distpath $BuildDir $AppSpec
 
 Write-Host "==> Freeze PyInstaller : interface de recherche (GUI Tkinter)"
 $GuiSpec = Join-Path $BuildDir "gui.spec"
-@'
+@"
 # -*- mode: python ; coding: utf-8 -*-
-a = Analysis(["../recherche_doc/search/gui_app.py"],
-             pathex=[".."],
+a = Analysis([r"$GuiPy"],
+             pathex=[r"$ProjectRoot"],
              datas=[],
              hiddenimports=["recherche_doc.search.ui"],
              noarchive=False)
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, a.binaries, a.datas,
           name="RechercheDocumentaireSearch", console=False, exclude_binaries=False)
-'@ | Set-Content -Encoding UTF8 $GuiSpec
+"@ | Set-Content -Encoding ASCII $GuiSpec
 python -m PyInstaller --noconfirm --clean --workpath "$BuildDir\work" --distpath $BuildDir $GuiSpec
 
 Copy-Item (Join-Path $ProjectRoot "config.example.yaml") $BuildDir
-if (Test-Path (Join-Path $ProjectRoot "LICENSE")) {
-    Copy-Item (Join-Path $ProjectRoot "LICENSE") $BuildDir
-}
 
 if ($SkipInstaller) {
-    Write-Host "==> -SkipInstaller : exécutables seulement dans $BuildDir"
+    Write-Host "==> -SkipInstaller : executables seulement dans $BuildDir"
     exit 0
 }
 
-$WixBin = if ($env:WIX) { Join-Path $env:WIX "bin" } elseif ($env:WIX_BIN_DIR) { $env:WIX_BIN_DIR } else { "" }
+$WixBin = if ($env:WIX_BIN_DIR) { $env:WIX_BIN_DIR }
+          elseif ($env:WIX) { Join-Path $env:WIX "bin" }
+          else { "" }
 function Resolve-WixTool($tool) {
     $cmd = Get-Command $tool -ErrorAction SilentlyContinue
     if ($cmd) { return $tool }
     if ($WixBin -and (Test-Path (Join-Path $WixBin "$tool.exe"))) {
         return (Join-Path $WixBin "$tool.exe")
     }
-    throw "WiX Toolset v3 introuvable : installez WiX 3.14 (https://wixtoolset.org) ou définissez $env:WIX"
+    throw "WiX Toolset v3 introuvable : installez WiX 3.14 ou definissez WIX/WIX_BIN_DIR"
 }
 
 Write-Host "==> Compilation WiX : candle"
@@ -86,9 +87,9 @@ $WxsPath = Join-Path $PSScriptRoot "recherche_documentaire.wxs"
     "-dProjectRoot=$ProjectRoot" `
     -out $WxsObj `
     $WxsPath
-if ($LASTEXITCODE -ne 0) { throw "candle a échoué (code $LASTEXITCODE)" }
+if ($LASTEXITCODE -ne 0) { throw "candle a echoue (code $LASTEXITCODE)" }
 
-Write-Host "==> Édition de lien WiX : light"
+Write-Host "==> Edition de lien WiX : light"
 $MsiPath = Join-Path $DistDir $MsiName
 & (Resolve-WixTool "light") `
     -nologo `
@@ -96,6 +97,6 @@ $MsiPath = Join-Path $DistDir $MsiName
     -ext WixUtilExtension `
     -out $MsiPath `
     $WxsObj
-if ($LASTEXITCODE -ne 0) { throw "light a échoué (code $LASTEXITCODE)" }
+if ($LASTEXITCODE -ne 0) { throw "light a echoue (code $LASTEXITCODE)" }
 
 Write-Host "==> MSI produit : $MsiPath"
