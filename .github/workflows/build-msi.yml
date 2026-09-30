@@ -39,17 +39,30 @@ jobs:
       - name: Install WiX Toolset v3
         shell: pwsh
         run: |
-          $wixUrl = "https://github.com/wixtoolset/wix3/releases/download/wix3.14.1.0/wix314.exe"
+          $wixUrl = "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314.exe"
           $installer = "$env:TEMP\wix314.exe"
           Invoke-WebRequest -Uri $wixUrl -OutFile $installer
           Start-Process -FilePath $installer -ArgumentList "/q" -Wait
-          $wixBin = "${env:ProgramFiles(x86)}\WiX Toolset v3.14\bin"
-          if (Test-Path $wixBin) {
-            echo "WIX_BIN_DIR=$wixBin" | Out-File -FilePath $env:GITHUB_ENV -Append
-            echo "WIX=${env:ProgramFiles(x86)}\WiX Toolset v3.14" | Out-File -FilePath $env:GITHUB_ENV -Append
-          } else {
-            throw "WiX 3.14 non installé"
+          $candidates = @(
+            "${env:ProgramFiles(x86)}\WiX Toolset v3.14\bin",
+            "$env:ProgramFiles\WiX Toolset v3.14\bin",
+            "${env:ProgramFiles(x86)}\WiX Toolset v3.14\bin"
+          )
+          $wixBin = $candidates | Where-Object { Test-Path (Join-Path $_ "candle.exe") } | Select-Object -First 1
+          if (-not $wixBin) {
+            # Repli : archive des binaires
+            $zipUrl = "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip"
+            $zip = "$env:TEMP\wix314-binaries.zip"
+            $dest = "C:\wix314"
+            Invoke-WebRequest -Uri $zipUrl -OutFile $zip
+            Expand-Archive -Path $zip -DestinationPath $dest -Force
+            $wixBin = $dest
           }
+          if (-not (Test-Path (Join-Path $wixBin "candle.exe"))) {
+            throw "candle.exe introuvable après installation de WiX"
+          }
+          echo "WIX_BIN_DIR=$wixBin" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "WIX=$(Split-Path $wixBin)" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build MSI
         shell: pwsh
