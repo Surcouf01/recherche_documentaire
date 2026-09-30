@@ -110,7 +110,7 @@
       <Directory Id="ProgramMenuFolder">
         <Directory Id="AppMenuDir" Name="Recherche Documentaire">
           <Component Id="StartMenuShortcuts" Guid="*" Win64="yes">
-            <RegistryKey Root="HKLM" Key="Software\RechercheDocumentaire">
+            <RegistryKey Root="HKCU" Key="Software\RechercheDocumentaire">
               <RegistryValue Name="Shortcuts" Type="integer" Value="1" KeyPath="yes" />
             </RegistryKey>
             <Shortcut Id="SearchGuiShortcut"
