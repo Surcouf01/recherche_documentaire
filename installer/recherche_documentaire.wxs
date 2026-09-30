@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Installeur MSI « Recherche Documentaire » (WiX v3 / candle+light).
+  Généré par installer/build_msi.ps1 : Product/@Id et les GUID de composants
+  sont remplacés à la volée par le script de build (éléments *= GUID).
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="Recherche Documentaire"
+           Language="1036"
+           Manufacturer="Recherche Documentaire"
+           Version="$(var.ProductVersion)"
+           UpgradeCode="8A1B9C5D-6E7F-4A8B-9C0D-1E2F3A4B5C6D">
+
+    <Package Id="*"
+             Keywords="Recherche Documentaire"
+             Description="Outil de référencement documentaire par catégorie et tags"
+             Comments="Installe le moteur de synchro, l'interface de recherche et l'agent courriel"
+             InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Languages="1036" />
+
+    <MajorUpgrade AllowDowngrades="no"
+                  AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="Une version plus récente de Recherche Documentaire est déjà installée." />
+
+    <Media Id="1" Cabinet="media1.cab" EmbedCab="yes" />
+    <UIRef Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+    <Property Id="INSTALLDIR" Secure="yes">
+      <RegistrySearch Id="FindInstallDir" Root="HKLM"
+                      Key="Software\RechercheDocumentaire"
+                      Name="InstallDir" Type="raw" />
+    </Property>
+
+    <!-- Propriétés configurables en ligne de commande (msiexec /i ... PROP=VAL) -->
+    <Property Id="QUICKCONNECT_ID" Value="" Secure="yes" />
+    <Property Id="NAS_LOGIN" Value="" Secure="yes" />
+    <Property Id="NAS_PASSWORD" Value="" Secure="yes" />
+    <Property Id="NAS_DOCUMENTS_DIR" Value="/volume1/docs/Documents" Secure="yes" />
+    <Property Id="DRIVE_LETTER" Value="R:" Secure="yes" />
+    <Property Id="IMAP_URL" Value="" Secure="yes" />
+    <Property Id="MAIL_LOGIN" Value="" Secure="yes" />
+    <Property Id="MAIL_PASSWORD" Value="" Secure="yes" />
+    <Property Id="MAIL_DOCUMENTS_DIR" Value="" Secure="yes" />
+    <Property Id="LAST_RUN" Value="" Secure="yes" />
+
+    <InstallExecuteSequence>
+      <!-- Écrit la configuration YAML à partir des propriétés passées à msiexec -->
+      <Custom Action="WriteAppConfig" After="InstallFiles">NOT Installed</Custom>
+    </InstallExecuteSequence>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLDIR" Name="RechercheDocumentaire">
+          <Component Id="MainFiles" Guid="*" Win64="yes">
+            <File Id="RechercheDocExe"
+                  Source="$(var.BuildDir)\RechercheDocumentaire.exe"
+                  KeyPath="yes" />
+            <File Id="SearchGuiExe"
+                  Source="$(var.BuildDir)\RechercheDocumentaireSearch.exe" />
+            <File Id="ConfigExample"
+                  Source="$(var.BuildDir)\config.example.yaml" />
+            <File Id="LicenseRtf"
+                  Source="$(var.ProjectRoot)\installer\License.rtf" />
+            <RegistryKey Root="HKLM" Key="Software\RechercheDocumentaire">
+              <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLDIR]" />
+              <RegistryValue Name="Version" Type="string" Value="$(var.ProductVersion)" />
+            </RegistryKey>
+            <Environment Id="PATH" Name="PATH" Value="[INSTALLDIR]"
+                         Permanent="no" Part="last" Action="set" System="yes" />
+          </Component>
+
+          <!-- Base de données locale (répertoire caché, protégé) -->
+          <Directory Id="DataDir" Name=".docsearch">
+            <Component Id="DbDir" Guid="*" Win64="yes">
+              <RegistryKey Root="HKLM" Key="Software\RechercheDocumentaire">
+                <RegistryValue Name="DataDir" Type="string" Value="[INSTALLDIR].docsearch\" />
+              </RegistryKey>
+              <CreateFolder />
+            </Component>
+          </Directory>
+        </Directory>
+      </Directory>
+
+      <!-- Plugin de l'explorateur Windows : commande du menu contextuel Drive
+           (HKCU, par utilisateur, supprimée à la désinstallation).
+           La commande lance l'exe de recherche figé ; %V passe le dossier visité. -->
+      <Component Id="ExplorerPlugin" Guid="*" Win64="yes">
+        <RegistryKey Root="HKCU" Key="Software\Classes\Drive\shell\RechercheDocumentaire"
+                     Action="createAndRemoveOnUninstall">
+          <RegistryValue Type="string" Value="Recherche Documentaire..." />
+          <RegistryValue Name="Icon" Type="string"
+                         Value="[INSTALLDIR]RechercheDocumentaireSearch.exe,0" />
+          <RegistryKey Key="command">
+            <RegistryValue Type="string"
+                           Value='"[INSTALLDIR]RechercheDocumentaireSearch.exe" "%V"' />
+          </RegistryKey>
+        </RegistryKey>
+      </Component>
+
+      <!-- Raccourcis du menu Démarrer -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="AppMenuDir" Name="Recherche Documentaire">
+          <Component Id="StartMenuShortcuts" Guid="*" Win64="yes">
+            <RegistryKey Root="HKLM" Key="Software\RechercheDocumentaire">
+              <RegistryValue Name="Shortcuts" Type="integer" Value="1" KeyPath="yes" />
+            </RegistryKey>
+            <Shortcut Id="SearchGuiShortcut"
+                      Name="Recherche Documentaire"
+                      Description="Interface de recherche documentaire"
+                      Target="[INSTALLDIR]RechercheDocumentaireSearch.exe"
+                      WorkingDirectory="INSTALLDIR" />
+            <Shortcut Id="ServiceShortcut"
+                      Name="Démarrer le moteur de synchro"
+                      Description="Lance le moteur de synchro et l'agent courriel"
+                      Target="[INSTALLDIR]RechercheDocumentaire.exe"
+                      Arguments="--mode all"
+                      WorkingDirectory="INSTALLDIR" />
+            <RemoveFolder Id="RemoveAppMenuDir" On="uninstall" />
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <!-- Écrit la configuration YAML à partir des propriétés passées à msiexec.
+         Le VBScript accède aux propriétés via la Session MSI. -->
+    <Binary Id="WriteConfigScript"
+            SourceFile="$(var.ProjectRoot)\installer\write_config.vbs" />
+    <CustomAction Id="WriteAppConfig"
+                  BinaryRef="WriteConfigScript"
+                  VBScriptCall="WriteConfig"
+                  Return="check"
+                  Execute="deferred"
+                  HideTarget="yes" />
+
+    <Feature Id="Main" Level="1" Title="Recherche Documentaire"
+             Description="Moteur de synchro, recherche et agent courriel"
+             Display="expand" ConfigurableDirectory="INSTALLDIR">
+      <ComponentRef Id="MainFiles" />
+      <ComponentRef Id="DbDir" />
+      <ComponentRef Id="StartMenuShortcuts" />
+      <ComponentRef Id="ExplorerPlugin" />
+    </Feature>
+
+    <!-- Suggestion : lancement du moteur à la fin de l'installation -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT"
+              Value="Lancer le moteur de synchro maintenant" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXPROPERTY" Value="LAUNCHAPP" />
+    <CustomAction Id="LaunchApp"
+                  Directory="INSTALLDIR"
+                  ExeCommand='"[INSTALLDIR]RechercheDocumentaire.exe" --mode all'
+                  Return="asyncNoWait" />
+    <InstallExecuteSequence>
+      <Custom Action="LaunchApp" After="InstallFinalize">LAUNCHAPP</Custom>
+    </InstallExecuteSequence>
+  </Product>
+</Wix>

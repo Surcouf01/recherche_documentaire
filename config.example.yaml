@@ -1,0 +1,24 @@
+# Configuration du plugin Cloud Sync Engine « Recherche Documentaire »
+sync:
+  # ID NAS Synology QuickConnect (ex: id.quickconnect.to)
+  nas_quickconnect_id: "monidquickconnect"
+  nas_login: "utilisateur_nas"
+  nas_password: "motdepasse_nas"
+  # Répertoire « Documents » mappé sur le NAS
+  nas_documents_dir: "/volume1/docs/Documents"
+  # Lettre de drive à monter
+  drive_letter: "R:"
+  # Répertoire (caché) de la base de données ; optionnel (défaut: APPDATA/RechercheDocumentaire)
+  db_dir: null
+  # Racine locale (simulation / tests hors Cloud Sync Engine)
+  local_root: "./drive_root"
+
+# Configuration de l'Agent IA de sauvegarde de factures par courriel
+mail:
+  imap_url: "imap.example.com"
+  login: "prenom.nom@example.com"
+  password: "motdepasse_messagerie"
+  # Répertoire « Documents » dans lequel sauvegarder les PDF produits
+  documents_dir: "./drive_root/Documents"
+  # Date de dernier run (AAAA-MM-JJ) ; absent => 30 jours
+  last_run: null

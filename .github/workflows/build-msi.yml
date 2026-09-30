@@ -1,0 +1,79 @@
+name: build-msi
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tk/tcl for GUI tests
+        run: sudo apt-get update && sudo apt-get install -y tk8.6 tcl8.6 xvfb
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+      - name: Run tests
+        run: xvfb-run -a python -m unittest discover -s tests -v
+
+  build-msi:
+    needs: tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install WiX Toolset v3
+        shell: pwsh
+        run: |
+          $wixUrl = "https://github.com/wixtoolset/wix3/releases/download/wix3.14.1.0/wix314.exe"
+          $installer = "$env:TEMP\wix314.exe"
+          Invoke-WebRequest -Uri $wixUrl -OutFile $installer
+          Start-Process -FilePath $installer -ArgumentList "/q" -Wait
+          $wixBin = "${env:ProgramFiles(x86)}\WiX Toolset v3.14\bin"
+          if (Test-Path $wixBin) {
+            echo "WIX_BIN_DIR=$wixBin" | Out-File -FilePath $env:GITHUB_ENV -Append
+            echo "WIX=${env:ProgramFiles(x86)}\WiX Toolset v3.14" | Out-File -FilePath $env:GITHUB_ENV -Append
+          } else {
+            throw "WiX 3.14 non installé"
+          }
+
+      - name: Build MSI
+        shell: pwsh
+        env:
+          WIX_BIN_DIR: ${{ env.WIX_BIN_DIR }}
+        run: |
+          $env:PATH = "$env:WIX_BIN_DIR;$env:PATH"
+          $version = "${{ github.ref_name }}"
+          if ($version -notmatch '^v?\d+\.\d+\.\d+$') { $version = "0.1.0" }
+          $version = $version.TrimStart('v')
+          powershell -ExecutionPolicy Bypass -File installer\build_msi.ps1 -Version $version
+
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RechercheDocumentaire-msi
+          path: dist/*.msi
+          if-no-files-found: error
+
+      - name: Attach MSI to GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem dist\*.msi | Select-Object -First 1
+          gh release create "${{ github.ref_name }}" --generate-notes $msi.FullName --title "Recherche Documentaire ${{ github.ref_name }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

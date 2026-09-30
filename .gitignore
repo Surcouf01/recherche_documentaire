@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+drive_root/
+.docsearch/
+config.yaml
+*.db
+*.msi
+*.wixpdb
