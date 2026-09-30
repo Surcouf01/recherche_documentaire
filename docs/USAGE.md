@@ -186,4 +186,4 @@ python -m unittest discover -s tests   # 15 tests
 | Liens non créés (copies à la place) | système de fichiers sans symlink (FAT32, privilège manquant) : repli copie automatique |
 | Catégorie « Autre » systématique | texte non extractible (scan/image sans OCR) : brancher un OCR dans `extractors.py` |
 | Agent courriel ne trouve rien | `last_run` trop ancien/lointain ; vérifier IMAP ; les dossiers autres que INBOX ne sont pas scrutés |
-| Drive non monté (Windows) | CfApi requiert le provider (voir `windows_provider.py`) ; sinon utiliser `local_root` |
+| Drive non monté (Windows) | CfApi requiert le provider en marche (voir [docs/CFAPI.md](CFAPI.md)) ; sinon utiliser `local_root` |

@@ -8,6 +8,8 @@ et installeur MSI intégré au pipeline GitHub Actions.
 
 - [Architecture](docs/ARCHITECTURE.md) — objectifs, choix techniques,
   diagrammes de séquence et de classes, points d'extension
+- [Cloud Sync Engine API (CfApi)](docs/CFAPI.md) — concepts, cycle de vie
+  du sync root, callbacks, signatures, intégration dans l'outil
 - [Guide d'utilisation](docs/USAGE.md) — installation (MSI/sources),
   configuration, commandes, arborescence, dépannage
 - [Installeur MSI](installer/README.md) — build local et CI GitHub Actions

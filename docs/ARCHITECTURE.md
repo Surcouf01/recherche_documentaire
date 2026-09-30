@@ -2,6 +2,10 @@
 
 ## 1. Objectif
 
+> **Documentation CfApi dédiée** : voir [docs/CFAPI.md](CFAPI.md) pour le
+> guide complet de la Cloud Sync Engine API (concepts, cycle de vie,
+> callbacks, signatures, limites).
+
 L'outil « Recherche Documentaire » facilite la recherche de documents par
 **catégorie** et par **tags**. Un document copié dans le répertoire `Documents`
 est automatiquement :
@@ -64,6 +68,52 @@ recherche_doc/
 | PDF courriels | reportlab + pypdf | Corps rendu en pages PDF (mise en forme d'origine si convertisseur HTML disponible), pièces jointes converties puis **aplaties** en pages supplémentaires |
 | GUI | Tkinter | Standard, aucune dépendance ; opère aussi bien standalone que compagnon du drive |
 | Packaging | PyInstaller + **WiX v3** (MSI) | Installation per-machine silencieuse, properties MSI mappées sur `config.yaml` |
+
+## 3bis. Diagramme de l'architecture globale
+
+```mermaid
+flowchart TB
+    subgraph Sources["Sources de documents"]
+        N[NAS Synology - QuickConnect]
+        M[Messagerie personnelle IMAP]
+        F[Import manuel .eml]
+    end
+
+    subgraph Core["Coeur applicatif (recherche_doc)"]
+        SE[SyncEngine CfApi ou LocalSyncEngine]
+        AG[EmailInvoiceAgent]
+        P[IndexingPipeline]
+        C[DocumentClassifier CamemBERT]
+        T[Tagger]
+        DB[(SQLite caché files + FTS5)]
+    end
+
+    subgraph UX["Accès utilisateur"]
+        EX[Explorateur Windows verbe shell + drive CfApi]
+        GUI[GUI Tkinter de recherche]
+        CLI[CLI]
+    end
+
+    subgraph Deliver["Livraison"]
+        CI[GitHub Actions tests puis build-msi]
+        MSI[MSI WiX Release GitHub]
+    end
+
+    N -->|fichier copié dans Documents/| SE
+    M -->|factures détectées| AG
+    F --> AG
+    SE --> P
+    AG -->|PDF dans Documents/| P
+    P --> C
+    P --> T
+    P --> DB
+    P -->|liens Categories/Cat/Tag| EX
+    DB --> GUI
+    DB --> CLI
+    DB --> EX
+    CI --> MSI
+    MSI -->|installe service + GUI + plugin explorateur| EX
+```
 
 ## 4. Diagramme de séquence — import d'un document
 
