@@ -68,7 +68,6 @@ def main(argv=None):
             return 1
 
     if args.cmd == "index":
-        print(f"Indexation de « {pipeline.documents_dir.resolve()} »...")
         n = pipeline.index_existing()
         print(f"{n} fichier(s) indexé(s).")
 

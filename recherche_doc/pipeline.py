@@ -70,6 +70,7 @@ class IndexingPipeline:
         return self._counters[key]
 
     def index_existing(self, progress: Optional[Callable[[int], None]] = None) -> int:
+        print(f"Indexation de « {self.documents_dir.resolve()} »...")
         count = 0
         for f in sorted(self.documents_dir.rglob("*")):
             if f.is_file() and not f.is_symlink():
