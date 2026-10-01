@@ -26,8 +26,7 @@ RechercheDocumentaire-<version>-win64.msi
 
 :: Installation silencieuse configurée
 msiexec /i RechercheDocumentaire-<version>-win64.msi /qn ^
-  QUICKCONNECT_ID=monid NAS_LOGIN=user NAS_PASSWORD=secret ^
-  NAS_DOCUMENTS_DIR="/volume1/docs/Documents" DRIVE_LETTER=R: ^
+  DRIVE_LETTER=R: ^
   IMAP_URL=imap.example.com MAIL_LOGIN=moi@example.com MAIL_PASSWORD=secret ^
   LAST_RUN=2025-01-01
 ```
@@ -42,18 +41,15 @@ Démarrer sont créés.
 
 ```bash
 pip install -r requirements.txt
-cp config.example.yaml config.yaml   # renseigner NAS / messagerie
+cp config.example.yaml config.yaml   # renseigner drive / messagerie
 ```
 
 ## 2. Configuration (config.yaml)
 
 ```yaml
 sync:
-  nas_quickconnect_id: "monidquickconnect"   # ID QuickConnect Synology
-  nas_login: "utilisateur_nas"
-  nas_password: "motdepasse_nas"
-  nas_documents_dir: "/volume1/docs/Documents"
-  drive_letter: "R:"                          # lettre de drive à monter
+  drive_letter: "R:"                          # lettre de drive montée (accès NAS)
+                                              # la connexion au NAS est assurée par le montage du drive
   db_dir: null                                # défaut : répertoire caché
   local_root: "./drive_root"                  # racine locale (simu/tests)
 
@@ -65,9 +61,7 @@ mail:
   last_run: null        # date de dernier run ; défaut : 30 jours en arrière
 ```
 
-Sécurité : le mot de passe peut être passé par variable d'environnement pour
-éviter de le stocker en clair (remplacer la valeur par `env:NAS_PASSWORD` et
-exporter `NAS_PASSWORD`). **Ne jamais committer `config.yaml`.**
+**Ne jamais committer `config.yaml`.**
 
 ## 3. Utilisation quotidienne
 
@@ -82,6 +76,9 @@ exporter `NAS_PASSWORD`). **Ne jamais committer `config.yaml`.**
 ### Commandes
 
 ```bash
+# Vérifier l'accès au répertoire Documents (drive monté / NAS joignable)
+python -m recherche_doc.cli check-connection config.yaml
+
 # Indexer tous les fichiers existants de Documents/
 python -m recherche_doc.cli index config.yaml
 

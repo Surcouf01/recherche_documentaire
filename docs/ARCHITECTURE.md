@@ -180,10 +180,6 @@ sequenceDiagram
 ```mermaid
 classDiagram
     class SyncConfig {
-        +nas_quickconnect_id
-        +nas_login
-        +nas_password
-        +nas_documents_dir
         +drive_letter
         +db_dir
         +local_root

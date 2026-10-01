@@ -35,10 +35,6 @@
     </Property>
 
     <!-- Propriétés configurables en ligne de commande (msiexec /i ... PROP=VAL) -->
-    <Property Id="QUICKCONNECT_ID" Value="-" Secure="yes" />
-    <Property Id="NAS_LOGIN" Value="-" Secure="yes" />
-    <Property Id="NAS_PASSWORD" Value="-" Secure="yes" />
-    <Property Id="NAS_DOCUMENTS_DIR" Value="/volume1/docs/Documents" Secure="yes" />
     <Property Id="DRIVE_LETTER" Value="R:" Secure="yes" />
     <Property Id="IMAP_URL" Value="-" Secure="yes" />
     <Property Id="MAIL_LOGIN" Value="-" Secure="yes" />

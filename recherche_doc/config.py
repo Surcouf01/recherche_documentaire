@@ -9,10 +9,6 @@ import yaml
 
 @dataclass
 class SyncConfig:
-    nas_quickconnect_id: str
-    nas_login: str
-    nas_password: str
-    nas_documents_dir: str
     drive_letter: str = "R:"
     db_dir: Optional[str] = None
     local_root: Optional[str] = None
@@ -51,10 +47,6 @@ def load_sync_config(path: str) -> SyncConfig:
     with open(path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)["sync"]
     return SyncConfig(
-        nas_quickconnect_id=data["nas_quickconnect_id"],
-        nas_login=data["nas_login"],
-        nas_password=data["nas_password"],
-        nas_documents_dir=data["nas_documents_dir"],
         drive_letter=data.get("drive_letter", "R:"),
         db_dir=data.get("db_dir"),
         local_root=data.get("local_root"),

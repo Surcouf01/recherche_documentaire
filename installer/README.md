@@ -39,8 +39,7 @@ Déclencheurs : push sur `main`, PR, tags `v*`, et `workflow_dispatch`.
 
 ```bat
 msiexec /i RechercheDocumentaire-0.1.0-win64.msi /qn ^
-  QUICKCONNECT_ID=monid NAS_LOGIN=user NAS_PASSWORD=secret ^
-  NAS_DOCUMENTS_DIR="/volume1/docs/Documents" DRIVE_LETTER=R: ^
+  DRIVE_LETTER=R: ^
   IMAP_URL=imap.example.com MAIL_LOGIN=moi@example.com MAIL_PASSWORD=secret ^
   LAST_RUN=2025-01-01
 ```

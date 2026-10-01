@@ -1,12 +1,8 @@
 # Configuration du plugin Cloud Sync Engine « Recherche Documentaire »
 sync:
-  # ID NAS Synology QuickConnect (ex: id.quickconnect.to)
-  nas_quickconnect_id: "monidquickconnect"
-  nas_login: "utilisateur_nas"
-  nas_password: "motdepasse_nas"
-  # Répertoire « Documents » mappé sur le NAS
-  nas_documents_dir: "/volume1/docs/Documents"
-  # Lettre de drive à monter
+  # Lettre de drive montée (CfApi) donnant accès au répertoire « Documents » du NAS.
+  # L'outil ne gère pas lui-même la connexion au NAS (QuickConnect/identifiants) :
+  # il s'appuie sur le drive déjà monté. Utilisez `check-connection` pour diagnostiquer.
   drive_letter: "R:"
   # Répertoire (caché) de la base de données ; optionnel (défaut: APPDATA/RechercheDocumentaire)
   db_dir: null
