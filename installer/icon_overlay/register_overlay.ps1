@@ -91,10 +91,16 @@ Copy-Item $IcoFile (Join-Path $InstallDir "doclink.ico") -Force
 
 # --- Enregistrement COM ---
 Write-Info "Enregistrement ($Root)..."
+function Ensure-RegistryKey($path) {
+    # New-Item -Force tente de supprimer une clé existante (et échoue si elle a
+    # des sous-clés, ex. les overlays OneDrive) : on ne crée que si absente.
+    if (-not (Test-Path $path)) { New-Item -Path $path | Out-Null }
+}
+
 $clsidKey = "$ClassesRoot\CLSID\$Clsid"
-New-Item -Path $clsidKey -Force | Out-Null
+Ensure-RegistryKey $clsidKey
 Set-ItemProperty -Path $clsidKey -Name "(default)" -Value $CsProj
-New-Item -Path "$clsidKey\InprocServer32" -Force | Out-Null
+Ensure-RegistryKey "$clsidKey\InprocServer32"
 Set-ItemProperty -Path "$clsidKey\InprocServer32" -Name "(default)" -Value $DllPath
 Set-ItemProperty -Path "$clsidKey\InprocServer32" -Name "ThreadingModel" -Value "Apartment"
 
@@ -103,9 +109,9 @@ $overlayBase = if ($CurrentUser) {
 } else {
     "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers"
 }
-New-Item -Path $overlayBase -Force | Out-Null
+Ensure-RegistryKey $overlayBase
 $overlayKey = "$overlayBase\$OverlayName"
-New-Item -Path $overlayKey -Force | Out-Null
+Ensure-RegistryKey $overlayKey
 Set-ItemProperty -Path $overlayKey -Name "(default)" -Value $Clsid
 
 Write-Info "Overlay enregistre :"
