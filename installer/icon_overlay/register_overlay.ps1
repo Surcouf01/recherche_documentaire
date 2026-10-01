@@ -73,12 +73,7 @@ New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 $DllPath = Join-Path $InstallDir "RechercheDocumentaireOverlay.dll"
 
 # --- DLL : copie précompilée ou compilation à la volée ---
-if ($SourceDll -and (Test-Path $SourceDll)) {
-    Write-Info "Copie de la DLL precompilee : $SourceDll"
-    Copy-Item $SourceDll $DllPath -Force
-} elseif (Test-Path $DllPath) {
-    Write-Info "DLL existante reutilisee : $DllPath"
-} else {
+
     Write-Info "Compilation de l'overlay via csc.exe..."
     $csc = Get-ChildItem "C:\Windows\Microsoft.NET\Framework64\v*\csc.exe" -ErrorAction SilentlyContinue |
         Sort-Object Name -Descending | Select-Object -First 1
@@ -86,7 +81,7 @@ if ($SourceDll -and (Test-Path $SourceDll)) {
     & $csc.FullName /nologo /target:library /platform:x64 /optimize+ /out:$DllPath $CsFile
     if ($LASTEXITCODE -ne 0) { throw "csc a echoue (code $LASTEXITCODE)" }
     Write-Info "DLL compilee : $DllPath"
-}
+
 Copy-Item $IcoFile (Join-Path $InstallDir "doclink.ico") -Force
 
 # --- Enregistrement COM ---
