@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .classifier import DocumentClassifier
 from .config import load_mail_config, load_sync_config
+from .nas_connection import check_nas_connection
 from .database import DocumentDB
 from .pipeline import IndexingPipeline
 from .search.engine import SearchEngine
@@ -22,6 +23,9 @@ def _build_context(sync_config_path: str = "config.yaml"):
 def main(argv=None):
     p = argparse.ArgumentParser(prog="recherche_doc", description="Outil de référencement documentaire")
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    pc = sub.add_parser("check-connection", help="Vérifier la connexion au NAS (QuickConnect, joignabilité, identifiants)")
+    pc.add_argument("config")
 
     ps = sub.add_parser("index", help="Indexer les fichiers existants du répertoire Documents")
     ps.add_argument("config")
@@ -48,6 +52,22 @@ def main(argv=None):
 
     args = p.parse_args(argv)
     cfg, db, pipeline = _build_context(args.config)
+
+    if args.cmd == "check-connection":
+        errors = check_nas_connection(cfg)
+        if errors:
+            for err in errors:
+                print(f"ERREUR: {err}", file=sys.stderr)
+            return 1
+        print("Connexion au NAS vérifiée avec succès.")
+        return 0
+
+    if args.cmd in ("index", "watch"):
+        errors = check_nas_connection(cfg)
+        if errors:
+            for err in errors:
+                print(f"ERREUR: {err}", file=sys.stderr)
+            return 1
 
     if args.cmd == "index":
         n = pipeline.index_existing()
