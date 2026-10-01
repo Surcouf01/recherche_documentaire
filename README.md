@@ -22,11 +22,11 @@ reçues par courriel.
 
 1. **Moteur de synchro** (`recherche_doc/sync_engine.py`) — intégration Windows
    *Cloud Sync Engine API* (CfApi) montée sur une lettre de drive (`R:` par
-   défaut), connectée au NAS Synology via QuickConnect. Tout fichier copié dans
+   défaut) donnant accès au répertoire `Documents` du NAS. Tout fichier copié dans
    le répertoire `Documents` déclenche le pipeline d'indexation. Un moteur de
    simulation locale (`LocalSyncEngine`) permet l'usage/test hors Windows.
-2. **Configuration YAML** (`config.example.yaml`) — ID QuickConnect, login,
-   mot de passe NAS, répertoire `Documents` mappé, lettre de drive ; pour
+2. **Configuration YAML** (`config.example.yaml`) — lettre de drive montée
+   (accès NAS via le drive) ; pour
    l'agent courriel : URL/login/mot de passe IMAP, répertoire `Documents`
    cible, date de dernier run.
 3. **Arborescence de liens** — chaque fichier apparaît dans
@@ -68,7 +68,7 @@ pip install -r requirements.txt
 ## Utilisation
 
 ```bash
-cp config.example.yaml config.yaml   # puis renseigner NAS / messagerie
+cp config.example.yaml config.yaml   # puis renseigner drive / messagerie
 
 # Indexer les fichiers existants de Documents
 python -m recherche_doc.cli index config.yaml

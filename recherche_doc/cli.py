@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .classifier import DocumentClassifier
 from .config import load_mail_config, load_sync_config
+from .drive_check import check_documents_access
 from .database import DocumentDB
 from .pipeline import IndexingPipeline
 from .search.engine import SearchEngine
@@ -22,6 +23,9 @@ def _build_context(sync_config_path: str = "config.yaml"):
 def main(argv=None):
     p = argparse.ArgumentParser(prog="recherche_doc", description="Outil de référencement documentaire")
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    pc = sub.add_parser("check-connection", help="Vérifier l'accès au répertoire Documents (drive monté / NAS joignable)")
+    pc.add_argument("config")
 
     ps = sub.add_parser("index", help="Indexer les fichiers existants du répertoire Documents")
     ps.add_argument("config")
@@ -48,6 +52,20 @@ def main(argv=None):
 
     args = p.parse_args(argv)
     cfg, db, pipeline = _build_context(args.config)
+
+    if args.cmd == "check-connection":
+        error = check_documents_access(cfg)
+        if error:
+            print(f"ERREUR: {error}", file=sys.stderr)
+            return 1
+        print(f"Accès à « {cfg.documents_dir} » vérifié.")
+        return 0
+
+    if args.cmd in ("index", "watch"):
+        error = check_documents_access(cfg)
+        if error:
+            print(f"ERREUR: {error}", file=sys.stderr)
+            return 1
 
     if args.cmd == "index":
         n = pipeline.index_existing()

@@ -35,10 +35,6 @@
     </Property>
 
     <!-- Propriétés configurables en ligne de commande (msiexec /i ... PROP=VAL) -->
-    <Property Id="QUICKCONNECT_ID" Value="-" Secure="yes" />
-    <Property Id="NAS_LOGIN" Value="-" Secure="yes" />
-    <Property Id="NAS_PASSWORD" Value="-" Secure="yes" />
-    <Property Id="NAS_DOCUMENTS_DIR" Value="/volume1/docs/Documents" Secure="yes" />
     <Property Id="DRIVE_LETTER" Value="R:" Secure="yes" />
     <Property Id="IMAP_URL" Value="-" Secure="yes" />
     <Property Id="MAIL_LOGIN" Value="-" Secure="yes" />
@@ -68,6 +64,34 @@
             <File Id="ConfigExample"
                   Source="$(var.BuildDir)\config.example.yaml"
                   KeyPath="yes" />
+          </Component>
+          <!-- Overlay d'icône COM : badge « lien » sur les fichiers de Categories/ -->
+          <Component Id="IconOverlay" Guid="*" Win64="yes">
+            <File Id="OverlayDll"
+                  Source="$(var.BuildDir)\RechercheDocumentaireOverlay.dll"
+                  KeyPath="yes" />
+            <File Id="OverlayIcon" Source="$(var.BuildDir)\doclink.ico" />
+            <RegistryKey Root="HKLM"
+                         Key="Software\Classes\CLSID\{B4F9A2C1-7E3D-4A8E-9C2F-1D5E6A7B8C9D}">
+              <RegistryValue Type="string" Value="RechercheDocumentaire.DocumentLinkOverlay" />
+              <RegistryKey Key="InprocServer32">
+                <!-- Activation COM .NET : mscoree.dll + Assembly/Class/CodeBase -->
+                <RegistryValue Type="string" Value="mscoree.dll" />
+                <RegistryValue Name="ThreadingModel" Type="string" Value="Apartment" />
+                <RegistryValue Name="Assembly" Type="string"
+                               Value="RechercheDocumentaireOverlay, Version=1.0.0.0, Culture=neutral" />
+                <RegistryValue Name="Class" Type="string"
+                               Value="RechercheDocumentaire.DocumentLinkOverlay" />
+                <RegistryValue Name="RuntimeVersion" Type="string" Value="v4.0.30319" />
+                <RegistryValue Name="CodeBase" Type="string"
+                               Value="[INSTALLDIR]RechercheDocumentaireOverlay.dll" />
+              </RegistryKey>
+            </RegistryKey>
+            <RegistryKey Root="HKLM"
+                         Key="Software\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers\RechercheDocumentaireLink">
+              <RegistryValue Type="string"
+                             Value="{B4F9A2C1-7E3D-4A8E-9C2F-1D5E6A7B8C9D}" />
+            </RegistryKey>
           </Component>
           <Component Id="RegistryInfo" Guid="*" Win64="yes">
             <RegistryKey Root="HKLM" Key="Software\RechercheDocumentaire">
@@ -151,6 +175,7 @@
       <ComponentRef Id="DbDir" />
       <ComponentRef Id="StartMenuShortcuts" />
       <ComponentRef Id="ExplorerPlugin" />
+      <ComponentRef Id="IconOverlay" />
     </Feature>
 
     <!-- Suggestion : lancement du moteur à la fin de l'installation -->

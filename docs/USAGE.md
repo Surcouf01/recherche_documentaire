@@ -26,8 +26,7 @@ RechercheDocumentaire-<version>-win64.msi
 
 :: Installation silencieuse configurée
 msiexec /i RechercheDocumentaire-<version>-win64.msi /qn ^
-  QUICKCONNECT_ID=monid NAS_LOGIN=user NAS_PASSWORD=secret ^
-  NAS_DOCUMENTS_DIR="/volume1/docs/Documents" DRIVE_LETTER=R: ^
+  DRIVE_LETTER=R: ^
   IMAP_URL=imap.example.com MAIL_LOGIN=moi@example.com MAIL_PASSWORD=secret ^
   LAST_RUN=2025-01-01
 ```
@@ -42,18 +41,15 @@ Démarrer sont créés.
 
 ```bash
 pip install -r requirements.txt
-cp config.example.yaml config.yaml   # renseigner NAS / messagerie
+cp config.example.yaml config.yaml   # renseigner drive / messagerie
 ```
 
 ## 2. Configuration (config.yaml)
 
 ```yaml
 sync:
-  nas_quickconnect_id: "monidquickconnect"   # ID QuickConnect Synology
-  nas_login: "utilisateur_nas"
-  nas_password: "motdepasse_nas"
-  nas_documents_dir: "/volume1/docs/Documents"
-  drive_letter: "R:"                          # lettre de drive à monter
+  drive_letter: "R:"                          # lettre de drive montée (accès NAS)
+                                              # la connexion au NAS est assurée par le montage du drive
   db_dir: null                                # défaut : répertoire caché
   local_root: "./drive_root"                  # racine locale (simu/tests)
 
@@ -65,9 +61,7 @@ mail:
   last_run: null        # date de dernier run ; défaut : 30 jours en arrière
 ```
 
-Sécurité : le mot de passe peut être passé par variable d'environnement pour
-éviter de le stocker en clair (remplacer la valeur par `env:NAS_PASSWORD` et
-exporter `NAS_PASSWORD`). **Ne jamais committer `config.yaml`.**
+**Ne jamais committer `config.yaml`.**
 
 ## 3. Utilisation quotidienne
 
@@ -82,6 +76,9 @@ exporter `NAS_PASSWORD`). **Ne jamais committer `config.yaml`.**
 ### Commandes
 
 ```bash
+# Vérifier l'accès au répertoire Documents (drive monté / NAS joignable)
+python -m recherche_doc.cli check-connection config.yaml
+
 # Indexer tous les fichiers existants de Documents/
 python -m recherche_doc.cli index config.yaml
 
@@ -198,9 +195,9 @@ Règles à respecter :
    migrer le volume en **ext4 ou btrfs**. C'est un risque de données, pas
    d'intégration.
 2. **Mode simulation (`local_root` sur un montage SMB)** : les symlinks ne
-   fonctionnent pas sur SMB — repli **copie** automatique (l'espace NAS est
-   multiplié par le nombre de tags). En mode CfApi (production), ce problème
-   n'existe pas : les liens sont des entrées virtuelles locales.
+   fonctionnent pas sur SMB — la création du lien échoue avec `LinkCreationError`
+   (aucun repli par copie). En mode CfApi (production), ce problème n'existe
+   pas : les liens sont des entrées virtuelles locales.
 3. **Ne placez jamais la base SQLite sur le NAS** : SQLite sur SMB (verrou
    réseau peu fiable) risque la corruption. La base reste sur le poste.
 4. Les permissions « lecture seule » des répertoires catégorie/tag sont
@@ -214,7 +211,7 @@ Règles à respecter :
 | Symptôme | Cause probable / action |
 |---|---|
 | Aucun résultat en recherche | base vide : lancer `index` ; vérifier `db_dir` |
-| Liens non créés (copies à la place) | système de fichiers sans symlink (FAT32, privilège manquant) : repli copie automatique |
+| Liens non créés | système de fichiers sans symlink (FAT32, SMB, privilège manquant) : `LinkCreationError` signalée — **aucun repli par copie** ; sur Windows, accordez `SeCreateSymbolicLinkPrivilege` ou utilisez un volume NTFS. Les liens sont badgés par l'overlay d'icône « lien » dans l'explorateur |
 | Catégorie « Autre » systématique | texte non extractible (scan/image sans OCR) : brancher un OCR dans `extractors.py` |
 | Agent courriel ne trouve rien | `last_run` trop ancien/lointain ; vérifier IMAP ; les dossiers autres que INBOX ne sont pas scrutés |
 | Drive non monté (Windows) | CfApi requiert le provider en marche (voir [docs/CFAPI.md](CFAPI.md)) ; sinon utiliser `local_root` |
