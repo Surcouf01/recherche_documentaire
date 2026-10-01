@@ -100,9 +100,17 @@ function Ensure-RegistryKey($path) {
 $clsidKey = "$ClassesRoot\CLSID\$Clsid"
 Ensure-RegistryKey $clsidKey
 Set-ItemProperty -Path $clsidKey -Name "(default)" -Value $CsProj
+# Activation COM d'une DLL .NET : InprocServer32 doit pointer vers mscoree.dll,
+# accompagné des entrées Assembly/Class/RuntimeVersion/CodeBase (cf. RegAsm).
+# Pointer directement vers la DLL ne fonctionne pas (le runtime n'est pas chargé).
 Ensure-RegistryKey "$clsidKey\InprocServer32"
-Set-ItemProperty -Path "$clsidKey\InprocServer32" -Name "(default)" -Value $DllPath
-Set-ItemProperty -Path "$clsidKey\InprocServer32" -Name "ThreadingModel" -Value "Apartment"
+$inproc = "$clsidKey\InprocServer32"
+Set-ItemProperty -Path $inproc -Name "(default)" -Value "mscoree.dll"
+Set-ItemProperty -Path $inproc -Name "ThreadingModel" -Value "Apartment"
+Set-ItemProperty -Path $inproc -Name "Assembly" -Value "RechercheDocumentaireOverlay"
+Set-ItemProperty -Path $inproc -Name "Class" -Value $CsProj
+Set-ItemProperty -Path $inproc -Name "RuntimeVersion" -Value "v4.0.30319"
+Set-ItemProperty -Path $inproc -Name "CodeBase" -Value $DllPath
 
 $overlayBase = if ($CurrentUser) {
     "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers"

@@ -73,10 +73,18 @@
             <File Id="OverlayIcon" Source="$(var.BuildDir)\doclink.ico" />
             <RegistryKey Root="HKLM"
                          Key="Software\Classes\CLSID\{B4F9A2C1-7E3D-4A8E-9C2F-1D5E6A7B8C9D}">
+              <RegistryValue Type="string" Value="RechercheDocumentaire.DocumentLinkOverlay" />
               <RegistryKey Key="InprocServer32">
-                <RegistryValue Type="string"
-                               Value="[INSTALLDIR]RechercheDocumentaireOverlay.dll" />
+                <!-- Activation COM .NET : mscoree.dll + Assembly/Class/CodeBase -->
+                <RegistryValue Type="string" Value="mscoree.dll" />
                 <RegistryValue Name="ThreadingModel" Type="string" Value="Apartment" />
+                <RegistryValue Name="Assembly" Type="string"
+                               Value="RechercheDocumentaireOverlay, Version=1.0.0.0, Culture=neutral" />
+                <RegistryValue Name="Class" Type="string"
+                               Value="RechercheDocumentaire.DocumentLinkOverlay" />
+                <RegistryValue Name="RuntimeVersion" Type="string" Value="v4.0.30319" />
+                <RegistryValue Name="CodeBase" Type="string"
+                               Value="[INSTALLDIR]RechercheDocumentaireOverlay.dll" />
               </RegistryKey>
             </RegistryKey>
             <RegistryKey Root="HKLM"
