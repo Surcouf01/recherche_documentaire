@@ -22,11 +22,14 @@ namespace RechercheDocumentaire
             return 0;
         }
 
-        // Badge les fichiers situés sous <root>/<Catégorie>/[<Tag>/] qui sont des liens
-        // durs vers <root>/Documents/. Vérification par IDENTITÉ de fichier :
-        // NumberOfLinks>1 en local, sinon comparaison du FileIndex (ou, à défaut
-        // sur les partages SMB qui ne le fournissent pas, de la taille + horodatages)
-        // avec les fichiers de l'arborescence Documents/ voisine.
+        // Badge les fichiers et répertoires situés sous <root>/Categories/<Catégorie>/[<Tag>/].
+        // Répertoires : par construction des vues (cf. pipeline.py), toute catégorie/tag
+        // est une vue virtuelle — badge sans test de lien dur (NumberOfLinks d'un dossier
+        // NTFS vaut ~sous-dossiers+2 et ne prouve rien).
+        // Fichiers : liens durs vers <root>/Documents/, vérifiés par IDENTITÉ :
+        // NumberOfLinks>1 en local, sinon comparaison du FileIndex (ou, à défaut sur
+        // les partages SMB qui ne le fournissent pas, de la taille + horodatages) avec
+        // les fichiers de l'arborescence Documents/ voisine.
         public int IsMemberOf(string pwszPath, uint dwAttrib)
         {
             try
@@ -39,6 +42,8 @@ namespace RechercheDocumentaire
                 string rest = normalized.Substring(idx + "\\Categories\\".Length).TrimStart('\\');
                 if (rest.Length == 0)
                     return 1;
+                if ((dwAttrib & 0x10) != 0 || IsDirectory(pwszPath))
+                    return 0; // S_OK : vue Categories — badge direct
                 string documentsDir = System.IO.Path.Combine(
                     normalized.Substring(0, idx), "Documents");
                 if (IsHardLink(pwszPath, documentsDir))
@@ -48,6 +53,12 @@ namespace RechercheDocumentaire
             {
             }
             return 1;
+        }
+
+        private static bool IsDirectory(string path)
+        {
+            Info info = GetInfo(path);
+            return info != null && (info.Attributes & 0x10) != 0;
         }
 
         public int GetOverlayInfo(StringBuilder pwszIconFile, int cchMax, out int pIndex,
@@ -92,6 +103,7 @@ namespace RechercheDocumentaire
 
         private sealed class Info
         {
+            public uint Attributes;
             public uint NumberOfLinks;
             public uint Volume;
             public uint IndexHigh;
@@ -187,6 +199,7 @@ namespace RechercheDocumentaire
                     return null;
                 return new Info
                 {
+                    Attributes = raw.FileAttributes,
                     NumberOfLinks = raw.NumberOfLinks,
                     Volume = raw.VolumeSerialNumber,
                     IndexHigh = raw.FileIndexHigh,
