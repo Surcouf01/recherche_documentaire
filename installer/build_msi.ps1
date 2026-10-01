@@ -59,6 +59,21 @@ python -m PyInstaller --noconfirm --clean --workpath "$BuildDir\work" --distpath
 
 Copy-Item (Join-Path $ProjectRoot "config.example.yaml") $BuildDir
 
+Write-Host "==> Compilation de l'overlay d'icône COM (badge lien)"
+$OverlayDir = Join-Path $ProjectRoot "installer\icon_overlay"
+$OverlayCs = Join-Path $OverlayDir "RechercheDocumentaireOverlay.cs"
+$OverlayDll = Join-Path $BuildDir "RechercheDocumentaireOverlay.dll"
+$cscExe = Get-ChildItem "C:\Windows\Microsoft.NET\Framework64\v*\csc.exe" -ErrorAction SilentlyContinue |
+    Sort-Object Name -Descending | Select-Object -First 1
+if ($cscExe) {
+    & $cscExe.FullName /nologo /target:library /platform:x64 /optimize+ `
+        /out:$OverlayDll $OverlayCs
+    if ($LASTEXITCODE -ne 0) { throw "csc a echoue (code $LASTEXITCODE)" }
+    Copy-Item (Join-Path $OverlayDir "doclink.ico") $BuildDir
+} else {
+    Write-Warning "csc.exe introuvable : overlay d'icone non compile (badge lien indisponible)"
+}
+
 if ($SkipInstaller) {
     Write-Host "==> -SkipInstaller : executables seulement dans $BuildDir"
     exit 0

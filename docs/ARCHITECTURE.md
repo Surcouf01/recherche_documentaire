@@ -37,7 +37,7 @@ recherche_doc/
 ├── extractors.py        # Extraction de texte (PDF, DOCX, images, ...)
 ├── database.py          # SQLite cachée (files + FTS5 + settings)
 ├── pipeline.py          # Orchestration : classifier → tagger → DB → liens
-├── links.py             # Création des liens (symlink/hardlink/copie)
+├── links.py             # Création des liens (symlink/hardlink, pas de repli copie)
 ├── sync_engine.py       # Moteurs de synchro (local + factory Windows)
 ├── windows_provider.py  # Provider Cloud Sync Engine (CfApi via ctypes)
 ├── search/explorer_plugin.py  # Plugin explorateur : verbe + registre HKCU
@@ -63,7 +63,7 @@ recherche_doc/
 | Base de données | **SQLite** (+ FTS5) | Libre, embarquée, sans serveur, requête plein texte native. Stockée dans un répertoire **caché** (préfixe `.`) |
 | Sync Windows | **Cloud Sync Engine API (CfApi)** via **ctypes** (`windows_provider.py`) | Extension du système de fichiers montée sur une lettre de drive ; enregistrement du sync root (`CfRegisterSyncRoot`), connexion (`CfConnectSyncRoot`), création de placeholders (`CfCreatePlaceholders`), hydratation à la demande (`CfHydratePlaceholder`) ; répertoires virtuels Catégorie/Tag natifs dans l'explorateur. *Statut : implémenté, non testé hors Windows — les appels nécessitent un système de fichiers NTFS et un runner Windows* |
 | Plugin explorateur | **Verbe shell** (`search/explorer_plugin.py`) + clé WiX dans le MSI | Commande « Recherche Documentaire... » au menu contextuel des lecteurs (HKCU, sans élévation) ; `%V` passe le dossier visité → pré-filtrage catégorie/tag de la GUI ; enregistré par le MSI et auto-réparé au premier lancement (`--register/--unregister/--status`) |
-| Liens | symlink POSIX / hardlink Windows (repli copie) | Point N vers 1 fichier physique ; en mode CfApi, les entrées Catégorie/Tag sont des entrées virtuelles du provider |
+| Liens | symlink POSIX / hardlink Windows (aucun repli copie : `LinkCreationError` à l'échec) ; badge « lien » via overlay d'icône COM dans l'explorateur | Point N vers 1 fichier physique ; en mode CfApi, les entrées Catégorie/Tag sont des entrées virtuelles du provider |
 | Extraction texte | pypdf, OOXML (zip), EXIF | Multi-format sans dépendances lourdes ; extensible |
 | PDF courriels | reportlab + pypdf | Corps rendu en pages PDF (mise en forme d'origine si convertisseur HTML disponible), pièces jointes converties puis **aplaties** en pages supplémentaires |
 | GUI | Tkinter | Standard, aucune dépendance ; opère aussi bien standalone que compagnon du drive |
@@ -285,8 +285,8 @@ classDiagram
 - **Source de vérité** : le fichier physique dans `Documents/` (nom original).
 - **Index** : la base SQLite fait foi pour catégorie/tags/date/personnes.
 - **Vues** : `Categories/<Catégorie>/[<Tag>/]` ne contiennent que des liens
-  vers la source de vérité — jamais de copie de référence (repli copie
-  uniquement si le système de fichiers refuse les liens).
+  vers la source de vérité — jamais de copie de référence (échec explicite
+  `LinkCreationError` si le système de fichiers refuse les liens).
 - **Nommage** dans les vues : `<Catégorie><Recipient><Emetteur><YYYYMM>(_N)?.<ext>`
   (extension d'origine conservée, compteur d'unicité `_N`).
 

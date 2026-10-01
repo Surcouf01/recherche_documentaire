@@ -65,6 +65,26 @@
                   Source="$(var.BuildDir)\config.example.yaml"
                   KeyPath="yes" />
           </Component>
+          <!-- Overlay d'icône COM : badge « lien » sur les fichiers de Categories/ -->
+          <Component Id="IconOverlay" Guid="*" Win64="yes">
+            <File Id="OverlayDll"
+                  Source="$(var.BuildDir)\RechercheDocumentaireOverlay.dll"
+                  KeyPath="yes" />
+            <File Id="OverlayIcon" Source="$(var.BuildDir)\doclink.ico" />
+            <RegistryKey Root="HKLM"
+                         Key="Software\Classes\CLSID\{B4F9A2C1-7E3D-4A8E-9C2F-1D5E6A7B8C9D}">
+              <RegistryKey Key="InprocServer32">
+                <RegistryValue Type="string"
+                               Value="[INSTALLDIR]RechercheDocumentaireOverlay.dll" />
+                <RegistryValue Name="ThreadingModel" Type="string" Value="Apartment" />
+              </RegistryKey>
+            </RegistryKey>
+            <RegistryKey Root="HKLM"
+                         Key="Software\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers\RechercheDocumentaireLink">
+              <RegistryValue Type="string"
+                             Value="{B4F9A2C1-7E3D-4A8E-9C2F-1D5E6A7B8C9D}" />
+            </RegistryKey>
+          </Component>
           <Component Id="RegistryInfo" Guid="*" Win64="yes">
             <RegistryKey Root="HKLM" Key="Software\RechercheDocumentaire">
               <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLDIR]" />
@@ -147,6 +167,7 @@
       <ComponentRef Id="DbDir" />
       <ComponentRef Id="StartMenuShortcuts" />
       <ComponentRef Id="ExplorerPlugin" />
+      <ComponentRef Id="IconOverlay" />
     </Feature>
 
     <!-- Suggestion : lancement du moteur à la fin de l'installation -->
