@@ -46,3 +46,29 @@ msiexec /i RechercheDocumentaire-0.1.0-win64.msi /qn ^
 
 Toute propriété absente est laissée vide ; l'utilisateur peut aussi éditer
 `config.yaml` (copié depuis `config.example.yaml`) après installation.
+
+## Enregistrement de l'overlay d'icône sans installeur
+
+L'overlay « lien » (badge des liens sous `Categories/`) peut être enregistré
+sans exécuter le MSI :
+
+```bat
+:: Machine (HKLM) — session administrateur
+powershell -ExecutionPolicy Bypass -File installer\icon_overlay\register_overlay.ps1
+
+:: Utilisateur courant (HKCU) — sans élévation
+powershell -ExecutionPolicy Bypass -File installer\icon_overlay\register_overlay.ps1 -CurrentUser
+
+:: DLL précompilée (ex. issue du build) et répertoire d'installation
+powershell ... -File register_overlay.ps1 -SourceDll "build\windows\RechercheDocumentaireOverlay.dll" -InstallDir "C:\outil"
+
+:: Désenregistrement
+powershell -ExecutionPolicy Bypass -File installer\icon_overlay\register_overlay.ps1 -Unregister
+```
+
+Sans `-SourceDll`, le script compile `RechercheDocumentaireOverlay.cs` à la
+volée avec `csc.exe` (framework .NET, présent sur tout Windows). Après
+enregistrement, redémarrez l'Explorateur (`taskkill /f /im explorer.exe` puis
+`start explorer.exe`) ou la session : Windows charge les icon overlays au
+démarrage de l'Explorateur.
+
