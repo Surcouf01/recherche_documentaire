@@ -107,10 +107,23 @@ Ensure-RegistryKey "$clsidKey\InprocServer32"
 $inproc = "$clsidKey\InprocServer32"
 Set-ItemProperty -Path $inproc -Name "(default)" -Value "mscoree.dll"
 Set-ItemProperty -Path $inproc -Name "ThreadingModel" -Value "Apartment"
-Set-ItemProperty -Path $inproc -Name "Assembly" -Value "RechercheDocumentaireOverlay"
+# Assembly doit etre le nom complet de l'assembly (simple name + version/culture/token),
+# et CodeBase une URI file:/// : mscoree resout l'assembly via ces valeurs ; un chemin
+# brut dans CodeBase provoque FileNotFoundException a l'activation COM.
+$AssemblyName = [Reflection.AssemblyName]::GetAssemblyName($DllPath).FullName
+$CodeBaseUri = "file:///" + ($DllPath -replace '\\', '/')
+Set-ItemProperty -Path $inproc -Name "Assembly" -Value $AssemblyName
 Set-ItemProperty -Path $inproc -Name "Class" -Value $CsProj
 Set-ItemProperty -Path $inproc -Name "RuntimeVersion" -Value "v4.0.30319"
-Set-ItemProperty -Path $inproc -Name "CodeBase" -Value $DllPath
+Set-ItemProperty -Path $inproc -Name "CodeBase" -Value $CodeBaseUri
+# RegAsm duplique les valeurs dans une sous-cle de version (ex. 1.0.0.0) ;
+# certains chargeurs COM la lisent de preference a la cle racine.
+$Version = [Reflection.AssemblyName]::GetAssemblyName($DllPath).Version.ToString()
+$versionKey = "$inproc\$Version"
+Ensure-RegistryKey $versionKey
+Set-ItemProperty -Path $versionKey -Name "Assembly" -Value $AssemblyName
+Set-ItemProperty -Path $versionKey -Name "Class" -Value $CsProj
+Set-ItemProperty -Path $versionKey -Name "CodeBase" -Value $CodeBaseUri
 
 $overlayBase = if ($CurrentUser) {
     "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers"
