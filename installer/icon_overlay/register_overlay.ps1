@@ -73,12 +73,7 @@ New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 $DllPath = Join-Path $InstallDir "RechercheDocumentaireOverlay.dll"
 
 # --- DLL : copie précompilée ou compilation à la volée ---
-if ($SourceDll -and (Test-Path $SourceDll)) {
-    Write-Info "Copie de la DLL precompilee : $SourceDll"
-    Copy-Item $SourceDll $DllPath -Force
-} elseif (Test-Path $DllPath) {
-    Write-Info "DLL existante reutilisee : $DllPath"
-} else {
+
     Write-Info "Compilation de l'overlay via csc.exe..."
     $csc = Get-ChildItem "C:\Windows\Microsoft.NET\Framework64\v*\csc.exe" -ErrorAction SilentlyContinue |
         Sort-Object Name -Descending | Select-Object -First 1
@@ -86,7 +81,7 @@ if ($SourceDll -and (Test-Path $SourceDll)) {
     & $csc.FullName /nologo /target:library /platform:x64 /optimize+ /out:$DllPath $CsFile
     if ($LASTEXITCODE -ne 0) { throw "csc a echoue (code $LASTEXITCODE)" }
     Write-Info "DLL compilee : $DllPath"
-}
+
 Copy-Item $IcoFile (Join-Path $InstallDir "doclink.ico") -Force
 
 # --- Enregistrement COM ---
@@ -103,14 +98,45 @@ Set-ItemProperty -Path $clsidKey -Name "(default)" -Value $CsProj
 # Activation COM d'une DLL .NET : InprocServer32 doit pointer vers mscoree.dll,
 # accompagné des entrées Assembly/Class/RuntimeVersion/CodeBase (cf. RegAsm).
 # Pointer directement vers la DLL ne fonctionne pas (le runtime n'est pas chargé).
-Ensure-RegistryKey "$clsidKey\InprocServer32"
-$inproc = "$clsidKey\InprocServer32"
-Set-ItemProperty -Path $inproc -Name "(default)" -Value "mscoree.dll"
-Set-ItemProperty -Path $inproc -Name "ThreadingModel" -Value "Apartment"
-Set-ItemProperty -Path $inproc -Name "Assembly" -Value "RechercheDocumentaireOverlay"
-Set-ItemProperty -Path $inproc -Name "Class" -Value $CsProj
-Set-ItemProperty -Path $inproc -Name "RuntimeVersion" -Value "v4.0.30319"
-Set-ItemProperty -Path $inproc -Name "CodeBase" -Value $DllPath
+# "Assembly" doit être le nom COMPLET de l'assembly (avec version et token
+# de clé publique), sinon le runtime ne trouve pas l'assembly et l'activation
+# échoue avec 0x80040154 REGDB_E_CLASSNOTREG. RegAsm (/codebase) écrit ces
+# valeurs correctement : on l'utilise en priorité, avec le registre manuel
+# (nom complet lu via Reflection) en repli.
+$regasm = Get-ChildItem "C:\Windows\Microsoft.NET\Framework64\v*\RegAsm.exe" -ErrorAction SilentlyContinue |
+    Sort-Object Name -Descending | Select-Object -First 1
+$regasmOk = $false
+if ($regasm) {
+    Write-Info "RegAsm : $($regasm.FullName)"
+    & $regasm.FullName /nologo $DllPath /codebase | ForEach-Object { Write-Info "  $_" }
+    if ($LASTEXITCODE -eq 0) { $regasmOk = $true }
+}
+if (-not $regasmOk) {
+    if (-not $regasm) { Write-Info "RegAsm introuvable, enregistrement manuel du registre." }
+    else { Write-Info "RegAsm a echoue (code $LASTEXITCODE), enregistrement manuel du registre." }
+    $fullAssemblyName = [System.Reflection.AssemblyName]::GetAssemblyName($DllPath).FullName
+    Ensure-RegistryKey "$clsidKey\InprocServer32"
+    $inproc = "$clsidKey\InprocServer32"
+    Set-ItemProperty -Path $inproc -Name "(default)" -Value "mscoree.dll"
+    Set-ItemProperty -Path $inproc -Name "ThreadingModel" -Value "Apartment"
+    Set-ItemProperty -Path $inproc -Name "Assembly" -Value $fullAssemblyName
+    Set-ItemProperty -Path $inproc -Name "Class" -Value $CsProj
+    Set-ItemProperty -Path $inproc -Name "RuntimeVersion" -Value "v4.0.30319"
+    Set-ItemProperty -Path $inproc -Name "CodeBase" -Value $DllPath
+}
+# RegAsm ecrit dans la racine qu'il voit (HKLM pour RegAsm machine, ou HKCU si
+# eleve pour l'utilisateur) ; en mode -CurrentUser on deplace les cles vers HKCU.
+if ($CurrentUser) {
+    foreach ($src in @("HKLM:\SOFTWARE\Classes\CLSID\$Clsid", "HKCU:\Software\Classes\CLSID\$Clsid")) {
+        if (Test-Path $src) {
+            $dst = $src -replace "^HKLM:\\SOFTWARE\\Classes", "HKCU:\Software\Classes"
+            if ($src -ne $dst) {
+                Copy-Item -Path $src -Destination $dst -Recurse -Force -ErrorAction SilentlyContinue
+                Remove-Item -Path $src -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+}
 
 $overlayBase = if ($CurrentUser) {
     "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers"
