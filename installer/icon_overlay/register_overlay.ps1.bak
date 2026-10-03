@@ -1,8 +1,8 @@
 # register_overlay.ps1 — Enregistrement/désenregistrement de l'overlay d'icône
 # « lien » de Recherche Documentaire, sans exécuter l'installeur MSI.
 #
-# Le script compile la DLL COM native (C++) si elle est absente (cl.exe d'un
-# prompt VS x64 ou g++ MinGW), la copie avec doclink.ico dans un répertoire
+# Le script compile la DLL COM si elle est absente (csc.exe du framework .NET,
+# présent sur tout Windows), la copie avec doclink.ico dans un répertoire
 # d'installation, puis enregistre le CLSID et la clé ShellIconOverlayIdentifiers.
 #
 # Usage :
@@ -24,7 +24,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $OverlayDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$CppFile = Join-Path $OverlayDir "RechercheDocumentaireOverlay.cpp"
+$CsFile = Join-Path $OverlayDir "RechercheDocumentaireOverlay.cs"
 $IcoFile = Join-Path $OverlayDir "doclink.ico"
 $Clsid = "{B4F9A2C1-7E3D-4A8E-9C2F-1D5E6A7B8C9D}"
 $OverlayName = "RechercheDocumentaireLink"
@@ -74,23 +74,14 @@ $DllPath = Join-Path $InstallDir "RechercheDocumentaireOverlay.dll"
 
 # --- DLL : copie précompilée ou compilation à la volée ---
 
-    Write-Info "Compilation de l'overlay natif (C++)..."
-    # Le shell moderne refuse de charger le CLR .NET dans explorer.exe pour les
-    # extensions tierces : l'overlay est desormais une DLL native. Compilation
-    # via cl.exe (prompt VS x64) ou g++ (MinGW) sur le PATH ; un compilateur C++
-    # n'est pas livre avec Windows, contrairement a csc.
-    $cl = Get-Command cl.exe -ErrorAction SilentlyContinue
-    $gpp = Get-Command g++.exe -ErrorAction SilentlyContinue
-    if ($cl) {
-        & cl.exe /nologo /LD /O2 /EHsc $CppFile /Fe:$DllPath
-        if ($LASTEXITCODE -ne 0) { throw "cl a echoue (code $LASTEXITCODE) ; lancez depuis un prompt VS x64." }
-    } elseif ($gpp) {
-        & g++.exe -shared -O2 -std=c++11 -o $DllPath $CppFile
-        if ($LASTEXITCODE -ne 0) { throw "g++ a echoue (code $LASTEXITCODE)" }
-    } else {
-        throw "Aucun compilateur C++ (cl.exe ou g++) trouve. Ouvrez un prompt VS x64, ou compilez RechercheDocumentaireOverlay.cpp et fournissez la DLL via -SourceDll."
-    }
+    Write-Info "Compilation de l'overlay via csc.exe..."
+    $csc = Get-ChildItem "C:\Windows\Microsoft.NET\Framework64\v*\csc.exe" -ErrorAction SilentlyContinue |
+        Sort-Object Name -Descending | Select-Object -First 1
+    if (-not $csc) { throw "csc.exe introuvable ; fournissez une DLL via -SourceDll." }
+    & $csc.FullName /nologo /target:library /platform:x64 /optimize+ /out:$DllPath $CsFile
+    if ($LASTEXITCODE -ne 0) { throw "csc a echoue (code $LASTEXITCODE)" }
     Write-Info "DLL compilee : $DllPath"
+
 Copy-Item $IcoFile (Join-Path $InstallDir "doclink.ico") -Force
 
 # --- Enregistrement COM ---
@@ -104,11 +95,72 @@ function Ensure-RegistryKey($path) {
 $clsidKey = "$ClassesRoot\CLSID\$Clsid"
 Ensure-RegistryKey $clsidKey
 Set-ItemProperty -Path $clsidKey -Name "(default)" -Value $CsProj
-# DLL native : InprocServer32 pointe directement sur la DLL (pas de mscoree).
+# Activation COM d'une DLL .NET : InprocServer32 doit pointer vers mscoree.dll,
+# accompagné des entrées Assembly/Class/RuntimeVersion/CodeBase (cf. RegAsm).
+# Pointer directement vers la DLL ne fonctionne pas (le runtime n'est pas chargé).
+<<<<<<< HEAD
 Ensure-RegistryKey "$clsidKey\InprocServer32"
 $inproc = "$clsidKey\InprocServer32"
-Set-ItemProperty -Path $inproc -Name "(default)" -Value $DllPath
+Set-ItemProperty -Path $inproc -Name "(default)" -Value "mscoree.dll"
 Set-ItemProperty -Path $inproc -Name "ThreadingModel" -Value "Apartment"
+# Assembly doit etre le nom complet de l'assembly (simple name + version/culture/token),
+# et CodeBase une URI file:/// : mscoree resout l'assembly via ces valeurs ; un chemin
+# brut dans CodeBase provoque FileNotFoundException a l'activation COM.
+$AssemblyName = [Reflection.AssemblyName]::GetAssemblyName($DllPath).FullName
+$CodeBaseUri = "file:///" + ($DllPath -replace '\\', '/')
+Set-ItemProperty -Path $inproc -Name "Assembly" -Value $AssemblyName
+Set-ItemProperty -Path $inproc -Name "Class" -Value $CsProj
+Set-ItemProperty -Path $inproc -Name "RuntimeVersion" -Value "v4.0.30319"
+Set-ItemProperty -Path $inproc -Name "CodeBase" -Value $CodeBaseUri
+# RegAsm duplique les valeurs dans une sous-cle de version (ex. 1.0.0.0) ;
+# certains chargeurs COM la lisent de preference a la cle racine.
+$Version = [Reflection.AssemblyName]::GetAssemblyName($DllPath).Version.ToString()
+$versionKey = "$inproc\$Version"
+Ensure-RegistryKey $versionKey
+Set-ItemProperty -Path $versionKey -Name "Assembly" -Value $AssemblyName
+Set-ItemProperty -Path $versionKey -Name "Class" -Value $CsProj
+Set-ItemProperty -Path $versionKey -Name "CodeBase" -Value $CodeBaseUri
+=======
+# "Assembly" doit être le nom COMPLET de l'assembly (avec version et token
+# de clé publique), sinon le runtime ne trouve pas l'assembly et l'activation
+# échoue avec 0x80040154 REGDB_E_CLASSNOTREG. RegAsm (/codebase) écrit ces
+# valeurs correctement : on l'utilise en priorité, avec le registre manuel
+# (nom complet lu via Reflection) en repli.
+$regasm = Get-ChildItem "C:\Windows\Microsoft.NET\Framework64\v*\RegAsm.exe" -ErrorAction SilentlyContinue |
+    Sort-Object Name -Descending | Select-Object -First 1
+$regasmOk = $false
+if ($regasm) {
+    Write-Info "RegAsm : $($regasm.FullName)"
+    & $regasm.FullName /nologo $DllPath /codebase | ForEach-Object { Write-Info "  $_" }
+    if ($LASTEXITCODE -eq 0) { $regasmOk = $true }
+}
+if (-not $regasmOk) {
+    if (-not $regasm) { Write-Info "RegAsm introuvable, enregistrement manuel du registre." }
+    else { Write-Info "RegAsm a echoue (code $LASTEXITCODE), enregistrement manuel du registre." }
+    $fullAssemblyName = [System.Reflection.AssemblyName]::GetAssemblyName($DllPath).FullName
+    Ensure-RegistryKey "$clsidKey\InprocServer32"
+    $inproc = "$clsidKey\InprocServer32"
+    Set-ItemProperty -Path $inproc -Name "(default)" -Value "mscoree.dll"
+    Set-ItemProperty -Path $inproc -Name "ThreadingModel" -Value "Apartment"
+    Set-ItemProperty -Path $inproc -Name "Assembly" -Value $fullAssemblyName
+    Set-ItemProperty -Path $inproc -Name "Class" -Value $CsProj
+    Set-ItemProperty -Path $inproc -Name "RuntimeVersion" -Value "v4.0.30319"
+    Set-ItemProperty -Path $inproc -Name "CodeBase" -Value $DllPath
+}
+# RegAsm ecrit dans la racine qu'il voit (HKLM pour RegAsm machine, ou HKCU si
+# eleve pour l'utilisateur) ; en mode -CurrentUser on deplace les cles vers HKCU.
+if ($CurrentUser) {
+    foreach ($src in @("HKLM:\SOFTWARE\Classes\CLSID\$Clsid", "HKCU:\Software\Classes\CLSID\$Clsid")) {
+        if (Test-Path $src) {
+            $dst = $src -replace "^HKLM:\\SOFTWARE\\Classes", "HKCU:\Software\Classes"
+            if ($src -ne $dst) {
+                Copy-Item -Path $src -Destination $dst -Recurse -Force -ErrorAction SilentlyContinue
+                Remove-Item -Path $src -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+}
+>>>>>>> main
 
 $overlayBase = if ($CurrentUser) {
     "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers"
