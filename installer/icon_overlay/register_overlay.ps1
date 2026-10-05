@@ -85,12 +85,26 @@ $DllPath = Join-Path $InstallDir "RechercheDocumentaireOverlay.dll"
         & cl.exe /nologo /LD /O2 /EHsc $CppFile /Fe:$DllPath
         if ($LASTEXITCODE -ne 0) { throw "cl a echoue (code $LASTEXITCODE) ; lancez depuis un prompt VS x64." }
     } elseif ($gpp) {
-        & g++.exe -shared -O2 -std=c++11 -o $DllPath $CppFile
+        # -static : la DLL ne doit dependre d'aucune DLL runtime MinGW
+        # (libstdc++-6.dll, libgcc_s_*.dll) ; explorer.exe ne les trouverait
+        # pas dans son chemin de recherche et le chargement echouerait.
+        & g++.exe -static -static-libgcc -static-libstdc++ -shared -O2 -std=c++11 -o $DllPath $CppFile
         if ($LASTEXITCODE -ne 0) { throw "g++ a echoue (code $LASTEXITCODE)" }
     } else {
         throw "Aucun compilateur C++ (cl.exe ou g++) trouve. Ouvrez un prompt VS x64, ou compilez RechercheDocumentaireOverlay.cpp et fournissez la DLL via -SourceDll."
     }
     Write-Info "DLL compilee : $DllPath"
+    # Verifier l'architecture de la DLL : explorer.exe est 64 bits et refuse
+    # silencieusement une DLL 32 bits. Lecture du champ Machine de l'en-tete PE.
+    try {
+        $bytes = [IO.File]::ReadAllBytes($DllPath)
+        $peOff = [BitConverter]::ToInt32($bytes, 0x3C)
+        $machine = [BitConverter]::ToUInt16($bytes, $peOff + 4)
+        if ($machine -ne 0x8664) {
+            throw ("DLL compilee en 32 bits (machine=0x{0:X4}) : explorer.exe 64 bits ne peut pas la charger. Utilisez un toolchain x64 (prompt VS x64 ou mingw-w64 x86_64)." -f $machine)
+        }
+        Write-Info "Architecture DLL : x64 (OK)"
+    } catch { throw }
 Copy-Item $IcoFile (Join-Path $InstallDir "doclink.ico") -Force
 
 # --- Enregistrement COM ---
