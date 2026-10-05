@@ -250,7 +250,7 @@ namespace RechercheDocumentaire
 
     [ComVisible(true)]
     [ComImport]
-    [Guid("0C6C4200-C589-11D0-96A8-444553540000")]
+    [Guid("0C6C4200-C589-11D0-999A-00C04FD655E1")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     public interface IShellIconOverlayIdentifier
     {
