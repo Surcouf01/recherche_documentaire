@@ -82,7 +82,11 @@ $DllPath = Join-Path $InstallDir "RechercheDocumentaireOverlay.dll"
     $cl = Get-Command cl.exe -ErrorAction SilentlyContinue
     $gpp = Get-Command g++.exe -ErrorAction SilentlyContinue
     if ($cl) {
-        & cl.exe /nologo /LD /O2 /EHsc $CppFile /Fe:$DllPath
+        # /MT : lier le CRT statiquement. Par defaut cl utilise /MD et la DLL
+        # depend alors de vcruntime140.dll/msvcp140.dll ; si le processus hote
+        # (explorer.exe) ne les resolve pas, le chargement echoue avec
+        # 0x800401F9 CO_E_ERRORINDLL. Une extension shell doit etre autonome.
+        & cl.exe /nologo /LD /MT /O2 /EHsc $CppFile /Fe:$DllPath
         if ($LASTEXITCODE -ne 0) { throw "cl a echoue (code $LASTEXITCODE) ; lancez depuis un prompt VS x64." }
     } elseif ($gpp) {
         # -static : la DLL ne doit dependre d'aucune DLL runtime MinGW
